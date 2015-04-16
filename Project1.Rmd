@@ -1,0 +1,108 @@
+---
+title: "Reproduciable Research - Assignment 1"
+author: "Brett Taylor"
+date: "April 14, 2015"
+output: html_document
+---
+
+**Data**   
+Read in the data from the web site, and load it into variable activities.
+```{r load.data,echo=TRUE}
+source("downloadData.R")
+activities$date<-as.Date(activities$date)
+
+activities$timestamp<-as.POSIXct(paste(as.character(activities$date),sprintf("%00.4i",activities$interval),sep=" "),format="%Y-%m-%d %H%M")
+```
+
+
+### What is mean total number of steps taken per day?
+
+1. Make a histogram of the total number of steps taken each day
+
+2. Calculate and report the **mean** and **median** total number of steps taken per day
+
+
+```{r view.data.1,echo=TRUE,message=FALSE,warning=FALSE}
+library(dplyr)
+library(ggplot2)
+library(scales)
+library(lubridate)
+date.breaks<-seq(min(activities$date),max(activities$date),by="1 week")
+activities.by.day<-activities%>%group_by(date)%>%summarize(total.steps.per.day=sum(steps))
+mean.val<-mean(activities.by.day$total.steps.per.day[!is.na(activities.by.day$total.steps.per.day)])
+mean.valS<- prettyNum(mean.val,big.mark=",",scientific=FALSE)
+ 
+ggplot(activities.by.day,aes(x=date,y=total.steps.per.day ))+
+        geom_bar(stat="identity",color="black")+
+        geom_smooth(aes(group=1))+
+        geom_hline(yintercept=mean.val,color="red",size=2)+
+        labs(title="Bar Chart - Steps by Day")+
+        theme_bw()+
+        theme(axis.text.x=element_text(angle=45,hjust=1,size=8 ))+
+        scale_x_date (breaks=date.breaks)+
+        annotate("text",x=as.Date("2012-10-29"),y=20000,label=sprintf("Mean %s",mean.valS)) 
+```
+
+```{r view.data.2,echo=TRUE,message=FALSE,warning=FALSE}
+activities.by.day<-activities%>%group_by(date)%>%summarize(total.steps.per.day=sum(steps))
+mean.val<-mean(activities.by.day$total.steps.per.day[!is.na(activities.by.day$total.steps.per.day)])
+median.val<-median(activities.by.day$total.steps.per.day[!is.na(activities.by.day$total.steps.per.day)])
+mean.valS<- prettyNum(mean.val,big.mark=",",scientific=FALSE)
+median.valS<- prettyNum(median.val,big.mark=",",scientific=FALSE)
+
+ggplot(activities,aes(x=date,y=steps ))+
+        geom_histogram(stat="identity",color="black")+
+        geom_hline(yintercept=mean.val,color="red",size=2)+
+        labs(title="Histogram - Steps per Day")+
+        theme_bw()+
+        theme(axis.text.x=element_text(angle=45,hjust=1,size=8 ))+
+        scale_x_date (breaks=date.breaks) +
+        annotate("text",x=as.Date("2012-10-29"),y=20000,label=sprintf("Mean %s",mean.valS)) +
+        annotate("text",x=as.Date("2012-10-29"),y=18000,label=sprintf("Median %s",median.valS))
+```
+
+##What is the average daily activity pattern?
+
+* Make a time series plot (i.e. type = "l") of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all days (y-axis)
+
+* Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
+
+
+```{r view.data.3,echo=TRUE,message=FALSE,warning=FALSE}
+ggplot(activities, aes(timestamp, steps)) + 
+        geom_line() +
+        labs(x="",y="steps",title="Time Series") + 
+        theme_bw()+
+        theme(axis.text.x=element_text(angle=45,hjust=1,size=8 ))
+```
+
+
+```{r view.data.4,echo=TRUE,message=FALSE,warning=FALSE}
+activities.by.interval<-activities%>%filter(!is.na(steps))%>%group_by(interval)%>%summarize(avg.steps=mean(steps))
+max.steps<-max(activities.by.interval$avg.steps)
+max.stepsS<-prettyNum(max.steps,big.mark=",",digits=4,scientific=FALSE)
+max.interval<-(activities.by.interval%>%filter(avg.steps==max.steps))$interval
+hour.breaks<- activities.by.interval$interval[which(activities.by.interval$interval%%100==0)]
+ggplot(activities.by.interval, aes(interval, avg.steps)) + 
+        geom_vline(xintercept=max.interval,color="red",alpha=0.4,size=1.5) +
+        geom_line() +
+        annotate("text",x=1400,y=150,label=sprintf("Max steps: %s \n Interval: %s",
+                                                   max.stepsS,max.interval)) +
+        labs(x="",y="steps",title="Average Steps by Time Interval") + 
+        scale_x_discrete(breaks=hour.breaks)+
+        theme_bw()+
+        theme(axis.text.x=element_text(angle=45,hjust=1,size=8 ))
+```
+
+##Imputing missing values
+
+1. Note that there are a number of days/intervals where there are missing values (coded as NA). The presence of missing days may introduce bias into some calculations or summaries of the data.   
+
+2. Calculate and report the total number of missing values in the dataset (i.e. the total number of rows with NAs)   
+
+3. Devise a strategy for filling in all of the missing values in the dataset. The strategy does not need to be sophisticated. For example, you could use the mean/median for that day, or the mean for that 5-minute interval, etc.   
+
+4. Create a new dataset that is equal to the original dataset but with the missing data filled in.   
+
+5. Make a histogram of the total number of steps taken each day and Calculate and report the mean and median total number of steps taken per day. Do these values differ from the estimates from the first part of the assignment? What is the impact of imputing missing data on the estimates of the total daily number of steps?    
+
