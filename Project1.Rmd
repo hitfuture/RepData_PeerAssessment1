@@ -2,7 +2,9 @@
 title: "Reproduciable Research - Assignment 1"
 author: "Brett Taylor"
 date: "April 14, 2015"
-output: html_document
+output:
+  pdf_document:
+    latex_engine: lualatex
 ---
 
 **Data**   
@@ -52,13 +54,6 @@ ggplot(activities,aes(x=date,y=steps ))+
 summary(activities.by.day)
 ```
 
-##What is the average daily activity pattern?
-
-* Make a time series plot (i.e. type = "l") of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all days (y-axis)
-
-* Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
-
-
 ```{r view.data.3,echo=TRUE,message=FALSE,warning=FALSE}
 ggplot(activities, aes(timestamp, steps)) + 
         geom_line() +
@@ -67,16 +62,28 @@ ggplot(activities, aes(timestamp, steps)) +
         theme(axis.text.x=element_text(angle=45,hjust=1,size=8 ))
 ```
 
+##What is the average daily activity pattern?
+
+* Make a time series plot (i.e. type = "l") of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all days (y-axis)
+
+* Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
+
 
 ```{r view.data.4,echo=TRUE,message=FALSE,warning=FALSE}
-activities.by.interval<-activities%>%filter(!is.na(steps))%>%group_by(interval)%>%summarize(avg.steps=mean(steps))
+activities.by.interval <- activities%>%
+        filter(!is.na(steps))%>%
+        group_by(interval)%>%
+        summarize(avg.steps=mean(steps),
+                  median.steps=median(steps))
 max.steps<-max(activities.by.interval$avg.steps)
 max.stepsS<-prettyNum(max.steps,big.mark=",",digits=4,scientific=FALSE)
 max.interval<-(activities.by.interval%>%filter(avg.steps==max.steps))$interval
+#Create breaks on an hourly basis.
 hour.breaks<- activities.by.interval$interval[which(activities.by.interval$interval%%100==0)]
 ggplot(activities.by.interval, aes(interval, avg.steps)) + 
         geom_vline(xintercept=max.interval,color="red",alpha=0.4,size=1.5) +
         geom_line() +
+        # Display the max on the graph, and the interval that is max.  
         annotate("text",x=1400,y=150,label=sprintf("Max steps: %s \n Interval: %s",
                                                    max.stepsS,max.interval)) +
         labs(x="",y="steps",title="Average Steps by Time Interval") + 
@@ -85,6 +92,9 @@ ggplot(activities.by.interval, aes(interval, avg.steps)) +
         theme(axis.text.x=element_text(angle=45,hjust=1,size=8 ))
 ```
 
+The interval that has the greatest number of steps on average is **`r max.interval`**.  
+
+
 ##Imputing missing values
 
 1. Note that there are a number of days/intervals where there are missing values (coded as NA). The presence of missing days may introduce bias into some calculations or summaries of the data.   
@@ -92,16 +102,16 @@ ggplot(activities.by.interval, aes(interval, avg.steps)) +
 
 
 ```
-2. Calculate and report the total number of missing values in the dataset (i.e. the total number of rows with NAs)   
-**Total Number of missing values:** `r prettyNum(nrow(activities%>%filter(is.na(steps))),big.mark=",")`
+The Activity data set includes missing values which are represented in the data set as NA.  
+**Total Number of missing values** `r prettyNum(nrow(activities%>%filter(is.na(steps))),big.mark=",")` out of 'r prettyNum(nrow(activities),big.mark=",")` observations.
 
 3. Devise a strategy for filling in all of the missing values in the dataset. The strategy does not need to be sophisticated. For example, you could use the mean/median for that day, or the mean for that 5-minute interval, etc.   
 
 
 Here is how we are going to create the values to replace the NA's (impute missing values)
 
-* Calculate the mean steps by interval.     
-* replace NA in the activities dataframe with the mean value.   
+* Calculate the mean and median steps by interval.     
+* replace NA in the activities dataframe with the median value.   
 
 4. Create a new dataset that is equal to the original dataset but with the missing data filled in.   
 
@@ -115,18 +125,20 @@ for(i in 1:nrow(activities2)){
         activity<-activities[i,]
         if(is.na(activity$steps)){
                 int<-activity$interval
-                mean.val<-(activities.by.interval%>%filter(interval==int))$avg.steps
-                activities2[i,]$steps<-mean.val
+                med.val<-(activities.by.interval%>%filter(interval==int))$median.steps
+                activities2[i,]$steps<-med.val
         }
         
 }
 
        
-activities.by.day2<-activities2%>%group_by(date)%>%summarize(total.steps.per.day=sum(steps))
-mean.val<-mean(activities.by.day2$total.steps.per.day[!is.na(activities.by.day2$total.steps.per.day)])
-median.val<-median(activities.by.day2$total.steps.per.day[!is.na(activities.by.day2$total.steps.per.day)])
+activities.by.day2<-activities2%>%
+        group_by(date)%>%
+        summarize(total.steps.per.day=sum(steps))
+mean.val<-mean(activities.by.day2$total.steps.per.day)
+median.val<-median(activities.by.day2$total.steps.per.day)
 
-#kable(activities2[which(is.na(activities$steps)),])
+#kable(activities.by.day2)
 
 
 ```
