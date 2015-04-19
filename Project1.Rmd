@@ -6,11 +6,18 @@ output: html_document
 ---
 
 **Data**   
-Read in the data from the web site, and load it into variable activities.
-```{r load.data,echo=TRUE}
-source("downloadData.R")
-activities$date<-as.Date(activities$date)
 
+* Read in the data from the web site, and load it into variable activities. 
+* Add a "timestamp field so that it will be easy to analyze "
+
+```{r load.data,echo=TRUE,warning=FALSE,message=FALSE}
+source("downloadData.R")
+library(dplyr,quietly=TRUE)
+library(ggplot2)
+library(scales)
+library(lubridate)
+library(knitr)
+activities$date<-as.Date(activities$date)
 activities$timestamp<-as.POSIXct(paste(as.character(activities$date),sprintf("%00.4i",activities$interval),sep=" "),format="%Y-%m-%d %H%M")
 ```
 
@@ -22,28 +29,10 @@ activities$timestamp<-as.POSIXct(paste(as.character(activities$date),sprintf("%0
 2. Calculate and report the **mean** and **median** total number of steps taken per day
 
 
-```{r view.data.1,echo=TRUE,message=FALSE,warning=FALSE}
-library(dplyr)
-library(ggplot2)
-library(scales)
-library(lubridate)
-date.breaks<-seq(min(activities$date),max(activities$date),by="1 week")
-activities.by.day<-activities%>%group_by(date)%>%summarize(total.steps.per.day=sum(steps))
-mean.val<-mean(activities.by.day$total.steps.per.day[!is.na(activities.by.day$total.steps.per.day)])
-mean.valS<- prettyNum(mean.val,big.mark=",",scientific=FALSE)
- 
-ggplot(activities.by.day,aes(x=date,y=total.steps.per.day ))+
-        geom_bar(stat="identity",color="black")+
-        geom_smooth(aes(group=1))+
-        geom_hline(yintercept=mean.val,color="red",size=2)+
-        labs(title="Bar Chart - Steps by Day")+
-        theme_bw()+
-        theme(axis.text.x=element_text(angle=45,hjust=1,size=8 ))+
-        scale_x_date (breaks=date.breaks)+
-        annotate("text",x=as.Date("2012-10-29"),y=20000,label=sprintf("Mean %s",mean.valS)) 
-```
 
 ```{r view.data.2,echo=TRUE,message=FALSE,warning=FALSE}
+
+date.breaks<-seq(min(activities$date),max(activities$date),by="1 week")
 activities.by.day<-activities%>%group_by(date)%>%summarize(total.steps.per.day=sum(steps))
 mean.val<-mean(activities.by.day$total.steps.per.day[!is.na(activities.by.day$total.steps.per.day)])
 median.val<-median(activities.by.day$total.steps.per.day[!is.na(activities.by.day$total.steps.per.day)])
@@ -52,13 +41,15 @@ median.valS<- prettyNum(median.val,big.mark=",",scientific=FALSE)
 
 ggplot(activities,aes(x=date,y=steps ))+
         geom_histogram(stat="identity",color="black")+
+#        geom_density(position="identity") +
         geom_hline(yintercept=mean.val,color="red",size=2)+
         labs(title="Histogram - Steps per Day")+
         theme_bw()+
-        theme(axis.text.x=element_text(angle=45,hjust=1,size=8 ))+
-        scale_x_date (breaks=date.breaks) +
+        theme(axis.text.x=element_text(angle=45,hjust=1,size=8 )) +
+        scale_x_date (breaks=date.breaks) +  #Use this to sequence dates on a weekly basis.
         annotate("text",x=as.Date("2012-10-29"),y=20000,label=sprintf("Mean %s",mean.valS)) +
-        annotate("text",x=as.Date("2012-10-29"),y=18000,label=sprintf("Median %s",median.valS))
+       annotate("text",x=as.Date("2012-10-29"),y=18000,label=sprintf("Median %s",median.valS))
+summary(activities.by.day)
 ```
 
 ##What is the average daily activity pattern?
@@ -97,12 +88,90 @@ ggplot(activities.by.interval, aes(interval, avg.steps)) +
 ##Imputing missing values
 
 1. Note that there are a number of days/intervals where there are missing values (coded as NA). The presence of missing days may introduce bias into some calculations or summaries of the data.   
+```{r view.data.5,echo=TRUE,message=FALSE,warning=FALSE}
 
+
+```
 2. Calculate and report the total number of missing values in the dataset (i.e. the total number of rows with NAs)   
+**Total Number of missing values:** `r prettyNum(nrow(activities%>%filter(is.na(steps))),big.mark=",")`
 
 3. Devise a strategy for filling in all of the missing values in the dataset. The strategy does not need to be sophisticated. For example, you could use the mean/median for that day, or the mean for that 5-minute interval, etc.   
+
+
+Here is how we are going to create the values to replace the NA's (impute missing values)
+
+* Calculate the mean steps by interval.     
+* replace NA in the activities dataframe with the mean value.   
 
 4. Create a new dataset that is equal to the original dataset but with the missing data filled in.   
 
 5. Make a histogram of the total number of steps taken each day and Calculate and report the mean and median total number of steps taken per day. Do these values differ from the estimates from the first part of the assignment? What is the impact of imputing missing data on the estimates of the total daily number of steps?    
 
+
+```{r impute.data,echo=TRUE}
+#activities.by.interval #Mean steps by interval - see above
+activities2 <- activities
+for(i in 1:nrow(activities2)){
+        activity<-activities[i,]
+        if(is.na(activity$steps)){
+                int<-activity$interval
+                mean.val<-(activities.by.interval%>%filter(interval==int))$avg.steps
+                activities2[i,]$steps<-mean.val
+        }
+        
+}
+
+       
+activities.by.day2<-activities2%>%group_by(date)%>%summarize(total.steps.per.day=sum(steps))
+mean.val<-mean(activities.by.day2$total.steps.per.day[!is.na(activities.by.day2$total.steps.per.day)])
+median.val<-median(activities.by.day2$total.steps.per.day[!is.na(activities.by.day2$total.steps.per.day)])
+
+#kable(activities2[which(is.na(activities$steps)),])
+
+
+```
+
+**Total Number of missing values after impute:** `r prettyNum(nrow(activities2%>%filter(is.na(steps))),big.mark=",")`
+
+```{r view.data.6,echo=TRUE,message=FALSE,warning=FALSE}
+
+mean.valS<- prettyNum(mean.val,big.mark=",",scientific=FALSE)
+median.valS<- prettyNum(median.val,big.mark=",",scientific=FALSE)
+
+ggplot(activities2,aes(x=date,y=steps ))+
+        geom_histogram(stat="identity",color="black")+
+        geom_hline(yintercept=mean.val,color="red",size=2)+
+        labs(title="Histogram - Steps per Day")+
+        theme_bw()+
+        theme(axis.text.x=element_text(angle=45,hjust=1,size=8 ))+
+        scale_x_date (breaks=date.breaks) +
+        annotate("text",x=as.Date("2012-10-29"),y=20000,label=sprintf("Mean %s",mean.valS)) +
+        annotate("text",x=as.Date("2012-10-29"),y=18000,label=sprintf("Median %s",median.valS))
+```
+
+##Are there differences in activity patterns between weekdays and weekends?
+
+
+Create a new factor variable in the dataset with two levels – “weekday” and “weekend” indicating whether a given date is a weekday or weekend day.   
+```{r echo=TRUE,message=FALSE,highlight=TRUE,results='hide'}
+assign.weekend<-function(aDate) {
+        set.week<-function(dt){if(weekdays(dt) %in% c("Saturday", "Sunday")) 
+                {"Weekend"}
+        else{"Weekday"}}
+        as.factor(sapply(aDate,set.week))
+}
+activities2<-activities2%>%mutate(weekend.status=assign.weekend(date))
+```
+
+   **Compare Weekdays to Weekend Activity**   
+
+```{r}
+
+ggplot(activities2,aes(x=interval,y=steps,color=weekend.status ))+
+        geom_line(stat="identity")+
+#        geom_density()+
+        facet_grid(weekend.status~.)+
+        labs(title="Weekend vs. Weekday Activity Patterns",x="Time Interval",y="Number of steps")+
+        theme_bw()+
+        theme(axis.text.x=element_text(angle=45,hjust=1,size=8 )) 
+```

@@ -4,14 +4,14 @@ library(scales)
 library(lubridate)
 source("downloadData.R")
 activities$date<-as.Date(activities$date)
-activities<-activities%>%mutate(timestamp=as.POSIXct(paste(as.character(date),sprintf("%00.4i",interval),sep=" "),format="%Y-%m-%d %HH%MM"))
+#activities<-activities%>%mutate(timestamp=as.POSIXct(paste(as.character(date),sprintf("%00.4i",interval),sep=" "),format="%Y-%m-%d %HH%MM"))
 
 activities$timestamp<-as.POSIXct(paste(as.character(activities$date),sprintf("%00.4i",activities$interval),sep=" "),
           format="%Y-%m-%d %H%M")
 
 paste(as.character(activities$date),sprintf("%00.4i",activities$interval),sep=" ")
 
-)date.breaks<-seq(min(activities$date),max(activities$date),by="1 week")
+date.breaks<-seq(min(activities$date),max(activities$date),by="1 day")
 activities.by.day<-activities%>%group_by(date)%>%summarize(steps.per.day=sum(steps))
 mean.val<-mean(activities.by.day$steps.per.day[!is.na(activities.by.day$steps.per.day)])
 ggplot(activities.by.day,aes(x=date,y=steps.per.day ))+
@@ -28,3 +28,17 @@ ggplot(activities.by.day,aes(x=date,y=steps.per.day ))+
 activities.by.interval<-activities%>%filter(!is.na(steps))%>%group_by(interval)%>%summarize(avg.steps=mean(steps))
 max.steps<-max(activities.by.interval$avg.steps)
 max.interval<-(activities.by.interval%>%filter(avg.steps==max.steps))$interval
+
+set.seed(1532)
+rnorm(100, mean = mean.val, sd = 100)
+
+activities.by.interval #Mean steps by interval - see above
+for(record in activities) {
+        if(is.na(record$steps)){
+                int<-record$interval
+                mean.val<-(activities.by.interval%>%filter(interval==int))$avg.steps
+                record$steps<-mean.val
+        }
+        
+}       
+
