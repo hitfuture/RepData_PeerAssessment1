@@ -133,7 +133,7 @@ median.val2S<- prettyNum(median.val2,big.mark=",",scientific=FALSE)
 
 ggplot(activities2,aes(x=date,y=steps ))+
         geom_histogram(stat="identity",color="black")+
-        geom_hline(yintercept=mean.val,color="red",size=1.5,alpha=.4)+
+        geom_hline(yintercept=mean.val2,color="red",size=1.5,alpha=.4)+
         labs(title="Histogram - Steps per Day\n Missing Values Replaced")+
         theme_bw()+
         theme(axis.text.x=element_text(angle=45,hjust=1,size=8 ))+
